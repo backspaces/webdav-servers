@@ -123,6 +123,7 @@ curl -X RESET https://webdav-server.deno.dev/
 
 github:
 https://github.com/new
+update .gitignore
 git init
 git remote add origin https://github.com/backspaces/webdav-servers.git
 git add .
