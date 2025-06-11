@@ -1,0 +1,9 @@
+{
+    "name": "webdav-servers",
+    "version": "1.0.0",
+    "description": "Multiple WebDAV server implementations using Deno and Node environments.",
+    "scripts": {
+        "start": "PORT=8888 deno run -A deno-cli-server.js"
+    },
+    "license": "MIT"
+}
