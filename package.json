@@ -6,7 +6,8 @@
         "start": "PORT=8888 deno run -A deno-cli-server.js &",
         "stop": "kill -9 $(lsof -t -i :8888 || true)",
         "serve": "http-server -p 7070 -o --silent > /dev/null &",
-        "list": "lsof -iTCP -sTCP:LISTEN -Pn | awk '{print $1, $2, $9}' | column -t"
+        "list": "lsof -iTCP -sTCP:LISTEN -Pn | awk '{print $1, $2, $9}' | column -t",
+        "commit": "git add --all && git status && git commit --verbose && git push"
     },
     "license": "MIT"
 }
