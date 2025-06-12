@@ -10,7 +10,7 @@ root='https://webdav-server.glitch.me'      # Glitch
 root='https://backspaces.net/webdav-one'    # cPanel
 root='https://backspaces.net/webdav-two'    # cPanel
 root='https://webdav-server.deno.dev'       # Deno Deploy
-root='https://webdav-server.deno.dev'       # Deno Deploy
+root='https://webdav-servers.onrender.com'  # Render
 
 root='https://backspaces.net/echo-server'   # cPanel
 
