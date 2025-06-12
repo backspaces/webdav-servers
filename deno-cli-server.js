@@ -1,9 +1,12 @@
-// deno-cli-server.js
-// A CLI-based Deno WebDAV server using local filesystem instead of Deno KV
-
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import { ensureDir, exists } from 'https://deno.land/std@0.224.0/fs/mod.ts'
-import { extname, join } from 'https://deno.land/std@0.224.0/path/mod.ts'
+import {
+    ensureFile,
+    ensureDir,
+    exists,
+    copy,
+    emptyDir,
+} from 'https://deno.land/std@0.224.0/fs/mod.ts'
+import { join, normalize } from 'https://deno.land/std@0.224.0/path/mod.ts'
 
 const baseHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -16,151 +19,154 @@ const baseHeaders = {
     DAV: '1, 2',
 }
 
-const ROOT_DIR = '.data'
-await ensureDir(ROOT_DIR)
+const root = '.data'
 
-function log(method, path, extra = '') {
-    const now = new Date().toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZone: 'America/Denver',
-    })
-    console.log(`[${now}] ${method} ${path} ${extra}`.trim())
+function log(method, path, message = '') {
+    const now = new Date().toLocaleString('en-US', { hour12: false })
+    console.log(`[${now}] ${method} ${path} ${message && '→ ' + message}`)
 }
 
-function fullPath(urlPath) {
-    return join(ROOT_DIR, decodeURIComponent(urlPath))
-}
+async function handler(req) {
+    try {
+        const url = new URL(req.url)
+        const method = req.method
+        const path = decodeURIComponent(url.pathname.slice(1)) // strip leading "/"
+        const filePath = normalize(join(root, path))
 
-// function handler(req: Request): Promise<Response> {
-function handler(req, res) {
-    const url = new URL(req.url)
-    const path = url.pathname
-    const method = req.method
-    const filePath = fullPath(path)
+        log(method, '/' + path)
 
-    if (method === 'OPTIONS') {
-        log(method, path, '→ Preflight')
-        return Promise.resolve(
-            new Response(null, {
+        if (method === 'OPTIONS') {
+            return new Response(null, {
                 status: 200,
                 headers: new Headers(baseHeaders),
             })
-        )
-    }
+        }
 
-    if (method === 'PUT') {
-        return req.arrayBuffer().then(async bodyBuffer => {
-            const body = new Uint8Array(bodyBuffer)
-            await ensureDir(join(filePath, '..'))
-            await Deno.writeFile(filePath, body)
-            log(method, path, `→ Wrote ${body.length} bytes`)
-            return new Response('Created', {
-                status: 201,
-                headers: new Headers(baseHeaders),
-            })
-        })
-    }
-
-    if (method === 'GET') {
-        return Deno.stat(filePath)
-            .then(async stat => {
-                if (stat.isDirectory) throw new Error('Is directory')
-                const data = await Deno.readFile(filePath)
-                log(method, path, `→ Read ${data.length} bytes`)
-                return new Response(data, {
+        if (method === 'GET') {
+            try {
+                const content = await Deno.readFile(filePath)
+                return new Response(content, {
                     status: 200,
-                    headers: new Headers(baseHeaders),
+                    headers: new Headers({
+                        ...baseHeaders,
+                        'Content-Length': content.byteLength.toString(),
+                    }),
                 })
-            })
-            .catch(() => {
-                log(method, path, '→ Not Found')
+            } catch {
                 return new Response('Not Found', {
                     status: 404,
                     headers: new Headers(baseHeaders),
                 })
-            })
-    }
+            }
+        }
 
-    if (method === 'DELETE') {
-        return Deno.remove(filePath, { recursive: true })
-            .then(() => {
-                log(method, path, '→ Deleted')
+        if (method === 'PUT') {
+            await ensureFile(filePath)
+            const body = req.body ? await req.arrayBuffer() : new ArrayBuffer(0)
+            await Deno.writeFile(filePath, new Uint8Array(body))
+            return new Response(null, {
+                status: 204,
+                headers: new Headers(baseHeaders),
+            })
+        }
+
+        if (method === 'DELETE') {
+            if (await exists(filePath)) {
+                await Deno.remove(filePath, { recursive: true })
                 return new Response(null, {
                     status: 204,
                     headers: new Headers(baseHeaders),
                 })
-            })
-            .catch(() => {
-                log(method, path, '→ Not Found')
-                return new Response('Not Found', {
-                    status: 404,
-                    headers: new Headers(baseHeaders),
-                })
-            })
-    }
-
-    if (method === 'MKCOL') {
-        return ensureDir(filePath)
-            .then(() => {
-                log(method, path, '→ Collection Created')
-                return new Response('Collection created', {
-                    status: 201,
-                    headers: new Headers(baseHeaders),
-                })
-            })
-            .catch(() => {
-                log(method, path, '→ Conflict')
-                return new Response('Conflict', {
-                    status: 409,
-                    headers: new Headers(baseHeaders),
-                })
-            })
-    }
-
-    if (method === 'PROPFIND') {
-        const depth = req.headers.get('Depth') || '1'
-        const list = []
-
-        async function walk(dir, base = '') {
-            for await (const entry of Deno.readDir(dir)) {
-                const full = join(dir, entry.name)
-                const rel = join(base, entry.name)
-                const stat = await Deno.stat(full)
-                list.push({
-                    href: join(path, rel),
-                    isDir: stat.isDirectory,
-                    size: stat.size,
-                })
-                if (depth === 'infinity' && stat.isDirectory)
-                    await walk(full, rel)
             }
+            return new Response('Not Found', {
+                status: 404,
+                headers: new Headers(baseHeaders),
+            })
         }
 
-        return walk(filePath)
-            .then(() => {
-                const xmlBody = list
-                    .map(
-                        entry => `
-<D:response>
-  <D:href>${entry.href}</D:href>
+        if (method === 'MKCOL') {
+            await ensureDir(filePath)
+            return new Response(null, {
+                status: 201,
+                headers: new Headers(baseHeaders),
+            })
+        }
+
+        if (method === 'COPY' || method === 'MOVE') {
+            const dest = req.headers.get('Destination')
+            if (!dest) {
+                return new Response('Missing Destination header', {
+                    status: 400,
+                    headers: new Headers(baseHeaders),
+                })
+            }
+            const to = normalize(join(root, new URL(dest).pathname))
+            const overwrite = req.headers.get('Overwrite') !== 'F'
+
+            if (!overwrite && (await exists(to))) {
+                return new Response('Destination exists', {
+                    status: 412,
+                    headers: new Headers(baseHeaders),
+                })
+            }
+
+            if (await exists(to)) await Deno.remove(to, { recursive: true })
+            await copy(filePath, to, { overwrite: true })
+
+            if (method === 'MOVE')
+                await Deno.remove(filePath, { recursive: true })
+
+            return new Response(null, {
+                status: 204,
+                headers: new Headers(baseHeaders),
+            })
+        }
+
+        if (method === 'PROPFIND') {
+            try {
+                const depth = req.headers.get('Depth') === '1' ? 1 : 0
+                const info = []
+
+                if (!(await exists(filePath))) {
+                    return new Response('Not Found', {
+                        status: 404,
+                        headers: new Headers(baseHeaders),
+                    })
+                }
+
+                const stat = await Deno.stat(filePath)
+                const isDir = stat.isDirectory
+                info.push(filePath)
+
+                if (isDir && depth === 1) {
+                    for await (const entry of Deno.readDir(filePath)) {
+                        info.push(join(filePath, entry.name))
+                    }
+                }
+
+                const xml = `<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+${await Promise.all(
+    info.map(async entry => {
+        const s = await Deno.stat(entry)
+        const display = entry.slice(root.length)
+        const size = s.isFile
+            ? `<D:getcontentlength>${s.size}</D:getcontentlength>`
+            : ''
+        return `<D:response>
+  <D:href>${display}</D:href>
   <D:propstat>
     <D:prop>
-      <D:resourcetype>${entry.isDir ? '<D:collection/>' : ''}</D:resourcetype>
-      <D:getcontentlength>${entry.size}</D:getcontentlength>
+      <D:resourcetype>${s.isDirectory ? '<D:collection/>' : ''}</D:resourcetype>
+      ${size}
     </D:prop>
     <D:status>HTTP/1.1 200 OK</D:status>
   </D:propstat>
 </D:response>`
-                    )
-                    .join('')
+    })
+).then(entries => entries.join('\n'))}
+</D:multistatus>`
 
-                const xml = `<?xml version=\"1.0\"?><D:multistatus xmlns:D=\"DAV:\">${xmlBody}</D:multistatus>`
-                log(method, path, `→ Returned ${list.length} items`)
                 return new Response(xml, {
                     status: 207,
                     headers: new Headers({
@@ -168,25 +174,28 @@ function handler(req, res) {
                         'Content-Type': 'application/xml',
                     }),
                 })
-            })
-            .catch(
-                () =>
-                    new Response('Not Found', {
-                        status: 404,
-                        headers: new Headers(baseHeaders),
-                    })
-            )
-    }
+            } catch (err) {
+                return new Response('PROPFIND Error', {
+                    status: 500,
+                    headers: new Headers(baseHeaders),
+                })
+            }
+        }
 
-    log(method, path, '→ Method Not Allowed')
-    return Promise.resolve(
-        new Response('Method Not Allowed', {
+        return new Response('Method Not Allowed', {
             status: 405,
             headers: new Headers(baseHeaders),
         })
-    )
+    } catch (err) {
+        console.error('Handler Error:', err)
+        return new Response('Internal Server Error', {
+            status: 500,
+            headers: new Headers(baseHeaders),
+        })
+    }
 }
 
-const port = Number(Deno.env.get('PORT')) || 8000
-console.log(`Starting WebDAV server on http://localhost:${port}`)
-serve(handler, { port })
+console.log(
+    `Starting WebDAV server on http://localhost:${Deno.env.get('PORT') || 8888}`
+)
+serve(handler, { port: Number(Deno.env.get('PORT') || 8888) })
