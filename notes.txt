@@ -1,6 +1,3 @@
-
-
-
 {
   "name": "webdav-one",
   "version": "1.0.0",
@@ -17,7 +14,6 @@
     "node": ">=18"
   }
 }
-
 
 {
   "name": "webdav-two",
@@ -52,7 +48,6 @@
     }
 }
 
-
 Yes — you can absolutely use app.use(...) instead of app.all(...) for WebDAV methods like COPY. They are functionally equivalent if you're doing manual req.method checks inside.
 These are equivalent:
 // Using app.all
@@ -74,13 +69,12 @@ app.post()      Submit data
 app.put()       Replace data
 app.delete()    Delete data
 app.patch()	    Partial update
-app.options()	Preflight
+app.options()	  Preflight
 app.head()	    Headers only
-app.all()	    Any of the above
+app.all()	      Any of the above
 What about WebDAV methods like PROPFIND, MKCOL, MOVE, COPY, etc.?
 These are not natively supported as top-level methods in Express.
 To handle them, you have to use app.use(...) or app.all(...)
-
 
 Middleware: Think of it like a filter or pipeline
 Each request flows through the middleware stack. Each function can:
@@ -88,7 +82,6 @@ Each request flows through the middleware stack. Each function can:
 - modify the response (res)
 - terminate the request (by sending a response directly)
 - or pass control to the next middleware with next()
-
 
 cat cpanel-server-2.js | grep ^app
     app.use((req, res, next) => {
@@ -105,7 +98,6 @@ cat cpanel-server-2.js | grep ^app
     app.use((req, res) => {
     app.listen(port, () => {
 
-
     const url = new URL(req.url)
     const path = url.pathname
     ->
@@ -120,7 +112,6 @@ This nonstandard method clears the server and restores a clean root. Uses curl, 
 curl -X RESET https://webdav-server.deno.dev/
 ```
 
-
 github:
 https://github.com/new
 update .gitignore
@@ -129,3 +120,33 @@ git remote add origin https://github.com/backspaces/webdav-servers.git
 git add .
 git commit -m "Initial commit of multi-platform WebDAV servers"
 git push -u origin main
+
+Tried Render: had cPanel-like fails!
+
+Move to AWS / lightsail
+https://lightsail.aws.amazon.com/
+  click on >_ icon for ssh to project
+Initialize:
+  sudo apt update && sudo apt install -y unzip
+Install Deno
+  curl -fsSL https://deno.land/install.sh | sh
+  Deno was installed successfully to /home/ubuntu/.deno/bin/deno
+    Edit shell configs to add deno to the PATH? (Y/n) Y or cr
+    This executes: export PATH="/home/ubuntu/.deno/bin:$PATH"
+Install ddeno-cli
+  chmod 400 lightsail-aws.pem # SSH will reject any private key that is readable by others
+  scp -i lightsail-aws.pem deno-cli-server.js ubuntu@3.137.171.107:
+    deno-cli-server.js   100% 6503    92.4KB/s   00:00
+
+
+Refresh:
+  source ~/.bashrc
+Run your server
+  deno run -A deno-cli-server.js
+
+PORT=8000 deno run -A deno-cli-server.js
+  Starting WebDAV server on http://localhost:8888
+Lightsail for Research: just packages existing Lightsail instances
+Set up completions
+https://us-east-1.console.aws.amazon.com/billing
+IPv4 address for ens5: 172.26.6.163

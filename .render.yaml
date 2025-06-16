@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: webdav-server
-    env: docker
-    plan: free
-    autoDeploy: true
-    envVars:
-      - key: PORT
-        value: 8888
