@@ -6,47 +6,59 @@
 # 409   Conflict (e.g. parent folder missing)
 # 423   Locked
 
-root='https://webdav-server.glitch.me'      # Glitch
-root='https://backspaces.net/webdav-one'    # cPanel
-root='https://backspaces.net/webdav-two'    # cPanel
-root='https://webdav-server.deno.dev'       # Deno Deploy
-root='http://3.137.171.107:8888'            # AWS
-
 root='https://backspaces.net/echo-server'   # cPanel
 
-echo $root
+root='https://webdav-server.glitch.me'      # Glitch
+root='https://backspaces.net/webdav-one/'    # cPanel
+root='https://backspaces.net/webdav-two/'    # cPanel
+root='https://webdav-server.deno.dev'       # Deno Deploy
+root='http://3.137.171.107:8888'            # Deno CLI AWS
+root='http://localhost:8888'                # Deno CLI desktop
 
-curl -s -X PROPFIND $root -H 'Depth: 1'
-curl -s -X PROPFIND $root -H 'Depth: 1' | grep href
-curl -s -X PROPFIND $root -H 'Depth: 1' | xmllint --format - | grep D:href
+usr='-u demo:secret'
+usr='-u bob:builder'
+usr='-u alice:wonderland'
 
-curl -i -X OPTIONS $root
+echo $root $usr
 
-curl -X PUT $root/hello.txt -d 'Hi from Curl!'
-curl -X GET $root/hello.txt
+curl -X PROPFIND $root # fails, no usr/auth
+curl $usr -X PROPFIND $root
+curl -s $usr -X PROPFIND $root | grep href # -s supress progress meter
+curl -s $usr -X PROPFIND $root/hello | grep href
 
-curl -X DELETE $root/hello.txt
+curl $usr -X PUT $root/hello.txt -d 'Hi from Curl!'
+curl $usr -X GET $root/hello.txt
+curl $usr -X DELETE $root/hello.txt
+curl $usr -X PUT $root/hello.txt -d 'Hi!'
+curl $usr -X GET $root/hello.txt
+curl $usr -X PUT $root/hello/hello.txt -d 'Hi again!'
+curl $usr -X GET $root/hello/hello.txt
 
-curl -X PUT $root/delete.txt -d 'Delete me!'
-curl -X GET $root/delete.txt
-curl -X DELETE $root/delete.txt
-curl -X GET $root/delete.txt
+curl -s $usr -X PROPFIND $root | grep href
+curl $usr -i -X OPTIONS $root
 
-curl -X MKCOL $root/folder/
-curl -X PUT $root/folder/foo.txt -d 'I am in folder'
-curl -X GET $root/folder/foo.txt
+curl $usr -X PUT $root/hello.txt -d 'Hi from Curl!'
+curl $usr -X GET $root/hello.txt
+curl $usr -X DELETE $root/hello.txt
 
-curl -X PUT $root/copy.txt -d 'I am getting copied!'
-curl -X GET $root/copy.txt
-curl -X COPY $root/copy.txt \
-  -H "Destination: $root/copyed.txt"
-curl -X GET $root/copyed.txt
+curl $usr -X PUT $root/delete.txt -d 'Delete me!'
+curl $usr -X GET $root/delete.txt
+curl $usr -X DELETE $root/delete.txt
+curl $usr -X GET $root/delete.txt
 
-curl -X PUT $root/move.txt -d 'I am moving!'
-curl -X GET $root/move.txt
-curl -X MOVE $root/move.txt \
-  -H "Destination: $root/moved.txt"
-curl -X GET $root/moved.txt
+curl $usr -X MKCOL $root/folder/
+curl $usr -X PUT $root/folder/foo.txt -d 'I am in folder'
+curl $usr -X GET $root/folder/foo.txt
+
+curl $usr -X PUT $root/copy.txt -d 'I will get copied!'
+curl $usr -X GET $root/copy.txt
+curl $usr -X COPY $root/copy.txt -H "Destination: $root/copyed.txt"
+curl $usr -X GET $root/copyed.txt
+
+curl $usr -X PUT $root/move.txt -d 'I will be moving!'
+curl $usr -X GET $root/move.txt
+curl $usr -X MOVE $root/move.txt -H "Destination: $root/moved.txt"
+curl $usr -X GET $root/moved.txt
 
 # =========
 

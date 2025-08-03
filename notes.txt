@@ -34,6 +34,22 @@
 }
 
 {
+  "name": "webdav-server",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "webdav-server": "^2.5.0"
+  },
+  "engines": {
+    "node": "16.x"
+  }
+}
+
+{
     "name": "echo-server",
     "version": "1.0.0",
     "main": "server.js",
@@ -133,10 +149,17 @@ Install Deno
   Deno was installed successfully to /home/ubuntu/.deno/bin/deno
     Edit shell configs to add deno to the PATH? (Y/n) Y or cr
     This executes: export PATH="/home/ubuntu/.deno/bin:$PATH"
-Install ddeno-cli
+Install deno-cli (in webdav-servers repo, not on aws)
   chmod 400 lightsail-aws.pem # SSH will reject any private key that is readable by others
-  scp -i lightsail-aws.pem deno-cli-server.js ubuntu@3.137.171.107:
+  scp -i lightsail-aws.pem deno-cli-server.js ubuntu@3.137.171.107:~
     deno-cli-server.js   100% 6503    92.4KB/s   00:00
+    If you want to overwrite the file directly in place:
+    scp -i lightsail-aws.pem deno-cli-server.js ubuntu@3.137.171.107:/home/ubuntu/
+    Or if it's in a subdirectory:
+    scp -i lightsail-aws.pem deno-cli-server.js ubuntu@3.137.171.107:/home/ubuntu/some-folder/
+In aws:
+  deno run -A --watch deno-cli-server.js
+
 
 
 Refresh:
@@ -150,3 +173,17 @@ Lightsail for Research: just packages existing Lightsail instances
 Set up completions
 https://us-east-1.console.aws.amazon.com/billing
 IPv4 address for ens5: 172.26.6.163
+
+
+ssh -i lightsail-aws.pem ubuntu@3.137.171.107
+pkill deno
+screen -wipe
+deno run -A deno-cli-server.js  # ✅ TEST first
+# If it works:
+Ctrl+C
+screen -S denoserver
+deno run -A deno-cli-server.js
+Ctrl+A D
+
+force remove a screen: screen -S 7295 -X quit
+    This sends a quit command to the session with ID 7295

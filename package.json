@@ -3,9 +3,18 @@
     "version": "1.0.0",
     "description": "Multiple WebDAV server implementations using Deno and Node environments.",
     "scripts": {
+        ".... START/STOP LOCAL SERVER": "..........",
         "start": "PORT=8888 deno run -A deno-cli-server.js &",
         "stop": "kill -9 $(lsof -t -i :8888 || true)",
+        "reset": "npm run stop && npm run start",
         "serve": "http-server -p 7070 -o --silent > /dev/null &",
+        ".... LOCALLY RUN REMOTE AWS CMDS": "..........",
+        "login": "ssh -i lightsail-aws.pem ubuntu@3.137.171.107",
+        "awscp": "scp -i lightsail-aws.pem auth-deno.js deno-cli-server.js restart-webdav.sh ubuntu@3.137.171.107:~",
+        "awsrun": "ssh -i lightsail-aws.pem ubuntu@3.137.171.107 './restart-webdav.sh'",
+        "aws": "npm run awscp && npm run awsrun",
+        ".... LOCAL UTILITIES": "..........",
+        "ls": "ls -FCR .data",
         "list": "lsof -iTCP -sTCP:LISTEN -Pn | awk '{print $1, $2, $9}' | column -t",
         "commit": "git add --all && git status && git commit --verbose && git push"
     },

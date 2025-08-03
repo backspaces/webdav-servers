@@ -29,6 +29,23 @@ function key(path) {
     return [pathPrefix, path]
 }
 
+// Add this helper function near the top, after `key()` is defined
+async function ensureParentsExist(fullPath) {
+    const parts = fullPath.split('/').filter(Boolean)
+    let current = ''
+    for (const part of parts.slice(0, -1)) {
+        current += '/' + part
+        const k = key(current)
+        const res = await kv.get(k)
+        if (!res.value) {
+            await kv.set(k, {
+                isDir: true,
+                created: Date.now(),
+            })
+        }
+    }
+}
+
 Deno.serve(async req => {
     // req is the incoming HTTP request.
     // path is the target path from the URL, like /file.txt or /folder/.
@@ -87,39 +104,73 @@ Deno.serve(async req => {
         })
     }
 
+    // if (method === 'MKCOL') {
+    //     const result = await kv.get(key(path))
+    //     if (result.value) {
+    //         if (!result.value.isDir) {
+    //             log(method, path, '→ Conflict (not a directory)')
+    //         } else {
+    //             log(method, path, '→ Conflict (already exists)')
+    //         }
+    //         return new Response('Conflict', {
+    //             status: 409,
+    //             headers: new Headers(baseHeaders),
+    //         })
+    //     }
+
+    //     const parentPath = path.endsWith('/') ? path.slice(0, -1) : path
+    //     // const parent =
+    //     //     parentPath.substring(0, parentPath.lastIndexOf('/')) || '/'
+    //     // const parentResult = await kv.get(key(parent))
+
+    //     // if (!parentResult.value || !parentResult.value.isDir) {
+    //     //     log(method, path, `→ Conflict (missing parent ${parent})`)
+    //     //     return new Response('Conflict', {
+    //     //         status: 409,
+    //     //         headers: new Headers(baseHeaders),
+    //     //     })
+    //     // }
+    //     async function ensureParentsExist(fullPath) {
+    //         const parts = fullPath.split('/').filter(Boolean)
+    //         let current = ''
+    //         for (const part of parts.slice(0, -1)) {
+    //             current += '/' + part
+    //             const k = key(current)
+    //             const res = await kv.get(k)
+    //             if (!res.value) {
+    //                 await kv.set(k, {
+    //                     isDir: true,
+    //                     created: Date.now(),
+    //                 })
+    //             }
+    //         }
+    //     }
+
+    //     await kv.set(key(path), { isDir: true })
+    //     log(method, path, '→ Directory created')
+    //     return new Response('Collection created', {
+    //         status: 201,
+    //         headers: new Headers(baseHeaders),
+    //     })
+    // }
     if (method === 'MKCOL') {
-        const result = await kv.get(key(path))
-        if (result.value) {
-            if (!result.value.isDir) {
-                log(method, path, '→ Conflict (not a directory)')
-            } else {
-                log(method, path, '→ Conflict (already exists)')
-            }
+        await ensureParentsExist(path)
+
+        const entry = await kv.get(key(path))
+        if (entry.value) {
+            log(method, path, '→ Already exists')
             return new Response('Conflict', {
                 status: 409,
-                headers: new Headers(baseHeaders),
+                headers: baseHeaders,
             })
         }
 
-        const parentPath = path.endsWith('/') ? path.slice(0, -1) : path
-        const parent =
-            parentPath.substring(0, parentPath.lastIndexOf('/')) || '/'
-        const parentResult = await kv.get(key(parent))
-
-        if (!parentResult.value || !parentResult.value.isDir) {
-            log(method, path, `→ Conflict (missing parent ${parent})`)
-            return new Response('Conflict', {
-                status: 409,
-                headers: new Headers(baseHeaders),
-            })
-        }
-
-        await kv.set(key(path), { isDir: true })
-        log(method, path, '→ Directory created')
-        return new Response('Collection created', {
-            status: 201,
-            headers: new Headers(baseHeaders),
+        await kv.set(key(path), {
+            isDir: true,
+            created: Date.now(),
         })
+        log(method, path)
+        return new Response('Created', { status: 201, headers: baseHeaders })
     }
 
     if (method === 'PROPFIND') {
