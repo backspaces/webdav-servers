@@ -1,3 +1,6 @@
+// deno deploy website: https://dash.deno.com/projects/webdav-server
+// deno deploy webdav-server url: webdav-server.deno.dev
+
 const kv = await Deno.openKv()
 
 const baseHeaders = {
@@ -63,6 +66,8 @@ Deno.serve(async req => {
     }
 
     if (method === 'PUT') {
+        await ensureParentsExist(path) // 🔧 Add this line
+
         const body = new Uint8Array(await req.arrayBuffer())
         const existing = await kv.get(key(path))
 

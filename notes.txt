@@ -187,3 +187,29 @@ Ctrl+A D
 
 force remove a screen: screen -S 7295 -X quit
     This sends a quit command to the session with ID 7295
+
+
+=================================
+
+deno install -A -r -f https://deno.land/x/deploy/deployctl.ts
+deployctl deploy --project=webdav-server deno-deploy-server.js
+
+
+MacMini|~/src/webdav-servers[667]
+main: deployctl deploy --project=webdav-server deno-deploy-server.js
+A new release of Deno is available: 2.3.5 → 2.4.3 Run `deno upgrade` to install it.
+ ℹ Provisioning a new access token...
+ ℹ Authorization URL: https://dash.deno.com/signin/cli?claim_challenge=A9TDaTE5ugaXyFzBfEqbPTXnGJ6u3iHCfXCtI0kvqDQ
+ ✔ Token obtained successfully
+ ✔ Deploying to project webdav-server.
+ ✔ Entrypoint: /Users/owen/Library/CloudStorage/Dropbox/src/webdav-servers/deno-deploy-server.js
+ ℹ Uploading all files from the current dir (/Users/owen/Library/CloudStorage/Dropbox/src/webdav-servers)
+ ✔ Found 46 assets.
+ ✔ Uploaded 49 new assets.
+ ✔ Preview deployment complete.
+ ✔ Created config file 'deno.json'.
+
+View at:
+ - https://webdav-server-gvg80jg4tsr1.deno.dev
+
+.... /agentscript/ide/examples/
